@@ -442,8 +442,6 @@
   /* the curtain can be stopped until it is stopped */
   #app[data-game="peek"]:not([data-frozen]):not([data-answered]) #btnFreeze{display:inline-flex;}
   #btnFreeze{background:var(--red);}
-  /* until the film of סול exists, the button that opens it is out of the row */
-  #btnVideo{display:none !important;}
   #app[data-game] #btnGroup{display:inline-flex;}
   /* the send button only belongs to the group way of asking */
   #app[data-game][data-group="1"]:not([data-answered]) #btnSend{display:inline-flex;}
@@ -1140,10 +1138,9 @@
       {name:"הַשִּׁיר עִם הַדְּמֻיּוֹת", src:"media/song.mp4"},
       {name:"הַדְגָּמָה",              src:"media/demo.mp4"}
     ],
-    /* "סול מגיע" has not been filmed yet. When the file is here this becomes
-       {name:"סוֹל מַגִּיעַ", src:"media/note.mp4"}, the button comes back in the
-       CSS, and the V shortcut with it. */
-    note: []
+    note: [
+      {name:"סוֹל מַגִּיעַ לְבֵית הַסֵּפֶר", src:"media/note.mp4"}
+    ]
   };
   var MAXN   = 8;      /* most notes one staff will hold */
   var placed = [];     /* {key, dur} for each note on the staff, in reading order */
@@ -2165,6 +2162,7 @@
     if(e.key === " "){ e.preventDefault(); toggleClicker(); }
     else if(e.key === "ArrowLeft" || e.key === "PageDown"){ e.preventDefault(); advance(); }
     else if(e.key === "ArrowRight" || e.key === "PageUp"){ e.preventDefault(); back(); }
+    else if(e.key === "v" || e.key === "V"){ openScreen("note"); }
     else if(e.key === "s" || e.key === "S"){ openScreen("song"); }
     else if(e.key === "ArrowDown" || e.key === "ArrowUp" || e.key === "p" || e.key === "P"){
       e.preventDefault(); togglePiano();
