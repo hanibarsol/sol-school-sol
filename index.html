@@ -519,6 +519,21 @@
   #app[data-mode="draw"] #btnStep,
   #app[data-mode="draw"] #btnMusic,
   #app[data-mode="draw"] #btnExit{display:inline-flex;}
+  /* which note the demonstration draws. Only in the step where a note is
+     drawn, and on a line of its own so the buttons below stay where they are. */
+  #drawPick{display:none; flex-basis:100%; justify-content:center; order:-1;
+            gap:clamp(.4rem,1.1vw,.9rem); flex-wrap:wrap;}
+  #app[data-mode="draw"][data-draw="3"] #drawPick{display:flex;}
+  #drawPick button{
+    display:flex; flex-direction:column; align-items:center; gap:.2rem;
+    background:none; border:0; padding:.15rem; cursor:pointer;
+    font-family:"Fredoka","Heebo",sans-serif; font-weight:600; color:var(--text-soft);
+    font-size:clamp(.7rem,1.3vw,.95rem);
+  }
+  #drawPick .charc{box-shadow:0 0 0 4px var(--line);}
+  #drawPick button[aria-pressed="true"]{color:var(--teal);}
+  #drawPick button[aria-pressed="true"] .charc{box-shadow:0 0 0 5px var(--teal);}
+  #drawPick button:focus-visible{outline:3px solid var(--teal); outline-offset:3px; border-radius:12px;}
   /* on the main row and while they draw; the games have a row of their own */
   /* The gold note. No words on it, like the headphones: the name lives in
      aria-label and title. While it is on, the whole piano writes. */
@@ -1031,6 +1046,7 @@
     <button id="btnSend" class="pill">שְׁלַח תְּשׁוּבָה</button>
     <button id="btnNext" class="pill">הַבָּא</button>
     <button id="btnGameExit" class="pill dim">יְצִיאָה</button>
+    <div id="drawPick" role="group" aria-label="אֵיזֶה תָּו לְצַיֵּר"></div>
     <button id="btnStep" class="pill">הַבָּא</button>
     <button id="btnRedraw" class="pill dim">הַדְגָּמָה שׁוּב</button>
     <button id="btnNums" class="pill dim">מִסְפּוּר הַקַּוִּים</button>
@@ -2044,6 +2060,54 @@
   var freeOn = false;
   function writes(k){ return k === LESSON || (freeOn && pianoMode === "write"); }
 
+  /* one round face per note, the same art the staff uses */
+  var drawPickEl = document.getElementById("drawPick");
+
+  function buildDrawPick(){
+    drawPickEl.innerHTML = "";
+    ORDER.forEach(function(key){
+      var b = document.createElement("button");
+      b.type = "button";
+      b.dataset.note = key;
+      b.setAttribute("aria-label", NOTES[key].he);
+
+      var c = document.createElement("div");
+      c.className = "charc";
+      c.style.setProperty("--d", "clamp(34px, 6.5vh, 58px)");
+      var img = document.createElement("img");
+      img.src = CHAR_ALL[key];
+      img.alt = "";
+      var fr = fitFigure(key, 1);
+      img.style.width  = "calc(var(--d) * " + fr.w + ")";
+      img.style.height = "calc(var(--d) * " + fr.h + ")";
+      img.style.left   = "calc(var(--d) * " + (fr.x + 0.5) + ")";
+      img.style.top    = "calc(var(--d) * " + (fr.y + 0.5) + ")";
+      c.appendChild(img);
+      b.appendChild(c);
+
+      var nm = document.createElement("span");
+      nm.textContent = NOTES[key].he;
+      b.appendChild(nm);
+
+      b.addEventListener("click", function(){
+        if(busy || drawKey === key){ return; }   /* not in the middle of a drawing */
+        drawKey = key;
+        drawn[3] = false;                        /* the new note has not been drawn yet */
+        resetTrace();
+        paintDrawPick();
+        paintStage();
+      });
+      drawPickEl.appendChild(b);
+    });
+    paintDrawPick();
+  }
+
+  function paintDrawPick(){
+    Array.prototype.forEach.call(drawPickEl.querySelectorAll("button"), function(b){
+      b.setAttribute("aria-pressed", b.dataset.note === drawKey ? "true" : "false");
+    });
+  }
+
   function buildKeyboard(){
     kb.innerHTML = "";
     var whites = document.createElement("div");
@@ -2601,7 +2665,7 @@
   function resetTrace(){
     gNotes.innerHTML = "";
     noteEls = [];
-    var g = buildTraceNote(LESSON, xs[0]);
+    var g = buildTraceNote(drawKey, xs[0]);
     g.classList.add("on");
     gNotes.appendChild(g);
     noteEls.push(g);
@@ -2667,6 +2731,10 @@
   var EYEBROW_HOME = eyebrow.textContent;
   var STEP_WORD = ["רִאשׁוֹן","שֵׁנִי","שְׁלִישִׁי"];
 
+  /* the note the demonstration draws. It starts on the lesson's own note and
+     Hani may move it to any of the seven. */
+  var drawKey = LESSON;
+
   var DRAW_STEPS = [
     "הוֹצִיאוּ לוּחַ מָחִיק וְטוּשׁ",
     "צַיְּרוּ חַמְשָׁה",
@@ -2688,7 +2756,9 @@
     gNotes.innerHTML = "";
     noteEls = [];
     /* one model note, in dots, hidden until the last step */
-    placed.push({key:LESSON, dur:DUR});
+    drawKey = LESSON;        /* every visit opens on the note of the lesson */
+    paintDrawPick();
+    placed.push({key:drawKey, dur:DUR});
     resetTrace();
 
     drawStage = 0;
@@ -2700,7 +2770,9 @@
   /* the eyebrow always names which of the three drawing steps we are on,
      so nobody assumes the sequence ended at the clef */
   function paintStage(){
-    headline.textContent = DRAW_STEPS[drawStage];
+    headline.textContent = (drawStage === DRAW_STEPS.length - 1)
+      ? "צַיְּרוּ אֶת " + NOTES[drawKey].he
+      : DRAW_STEPS[drawStage];
     if(drawStage >= 1 && drawn[drawStage] && !busy){ app.dataset.drawn = "1"; }
     else { delete app.dataset.drawn; }
     if(drawStage <= 0){
@@ -2728,7 +2800,7 @@
         var t = gNotes.querySelector(".trace");
         if(t){ t.classList.add("go"); }
         setTimeout(function(){
-          if(inDraw()){ tone(NOTES[LESSON].freq, 1.2); }
+          if(inDraw()){ tone(NOTES[drawKey].freq, 1.2); }
           done();
         }, 2300);
       }
@@ -3745,6 +3817,7 @@
   window.addEventListener("resize", layout);
 
   buildKeyboard();
+  buildDrawPick();
   layout();
   restoreState();   /* a reload should cost the class nothing */
 })();
