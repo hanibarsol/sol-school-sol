@@ -1446,23 +1446,46 @@
     var oscs = [car, mod];
 
 
+    function fade(tc){
+      var s = c.currentTime;
+      try{
+        out.gain.cancelScheduledValues(s);
+        out.gain.setValueAtTime(Math.max(out.gain.value, 0.0001), s);
+        out.gain.setTargetAtTime(0, s, tc);
+      }catch(err){}
+      oscs.forEach(function(o){ try{ o.stop(s + 0.5); }catch(err){} });
+    }
+
     return {
-      stop: function(){
-        var s = c.currentTime;
-        try{
-          out.gain.cancelScheduledValues(s);
-          out.gain.setValueAtTime(Math.max(out.gain.value, 0.0001), s);
-          out.gain.setTargetAtTime(0, s, 0.07);
-        }catch(err){}
-        oscs.forEach(function(o){ try{ o.stop(s + 0.5); }catch(err){} });
-      }
+      /* the note's own ending, exactly as it always was */
+      stop: function(){ fade(0.07); },
+      /* making way for the next note: gone before that note speaks, but
+         still a fade and not a chop, so there is no click */
+      cut:  function(){ fade(0.02); }
     };
+  }
+
+  /* one note at a time. A note sounds for well over a second, so without
+     this a quick row of presses leaves three notes ringing together, and
+     neighbours like mi and fa beat against each other. The notes on a staff
+     are read one after another, not as a chord. */
+  var lastTone = null;
+  function releaseLast(){
+    var v = lastTone;
+    lastTone = null;
+    if(v){ try{ v.cut(); }catch(err){} }
   }
 
   /* a note of a set length: clicker, landing, games, the other keys */
   function tone(freq, dur){
+    releaseLast();
     var v = pianoVoice(freq);
-    setTimeout(v.stop, (dur || 1.4) * 1000);
+    lastTone = v;
+    setTimeout(function(){
+      if(lastTone !== v){ return; }   /* a newer note already let this one go */
+      lastTone = null;
+      try{ v.stop(); }catch(err){}
+    }, (dur || 1.4) * 1000);
   }
 
   /* ---------------- holding a note for exactly one beat ----------------
@@ -1538,6 +1561,7 @@
   }
 
   function startTone(freq){
+    releaseLast();
     heldTone = pianoVoice(freq);
   }
 
@@ -2922,10 +2946,15 @@
     }
   })();
 
-  /* a rising major triad — the same notes they are learning to read */
+  /* a rising major triad — the same notes they are learning to read.
+     These three are built to ring together, so they keep their chord. */
   function cheer(){
+    releaseLast();
     [523.25, 659.25, 783.99].forEach(function(fq, i){
-      setTimeout(function(){ tone(fq, 0.9); }, i * 95);
+      setTimeout(function(){
+        var v = pianoVoice(fq);
+        setTimeout(function(){ try{ v.stop(); }catch(err){} }, 900);
+      }, i * 95);
     });
   }
 
